@@ -236,8 +236,8 @@ def main() -> int:
     """
     
     # Rutas de archivos
-    ruta_html = Path("c:/Users/miafu/Downloads/Web Scraping/Videojuegos en Guatemala - Pacifiko.com.html")
-    ruta_csv = Path("c:/Users/miafu/Downloads/Web Scraping/productos_videojuegos.csv")
+    ruta_html = Path("c:/Users/miafu/Downloads/Web-Scraping-con-Expresiones-Regulares/web_scraping/Videojuegos en Guatemala - Pacifiko.com.html")
+    ruta_csv = Path("c:/Users/miafu/Downloads/Web-Scraping-con-Expresiones-Regulares/web_scraping/productos_videojuegos.csv")
     
     print()
     print("Web Scraper - Extracción de Productos")
