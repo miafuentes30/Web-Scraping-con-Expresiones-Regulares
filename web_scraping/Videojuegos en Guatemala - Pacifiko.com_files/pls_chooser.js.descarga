@@ -1,0 +1,203 @@
+function GAProductVariantShowPlsChooser(el, options) {
+
+    var $el = $(el);
+    var $icon   = $el.find('> i');
+    var loadModalBodyAjax = null;
+
+    var loadModalBody = function(href) {
+        loadModalBodyAjax = $.ajax({
+            url: href,
+            dataType: 'json',
+            success: function(json) {
+                $('#modal-gapv-pls-chooser .options-wrapper').html(json['html']);
+                updateModalProductInfo(json['product']);
+                loadModalBodyAjax = null;
+            },
+            error: function(xhr, ajaxOptions, thrownError) {
+                if (xhr.statusText =='abort') {
+                    return;
+                }
+                console.error(thrownError + xhr.statusText + xhr.responseText);
+            }
+        });
+    };
+
+    var showModal = function() {
+        var modal = $('#modal-gapv-pls-chooser');
+
+        var align = function() {
+            modal.css('display', 'block');
+            var dialog = modal.find('.modal-dialog');
+            dialog.css("margin-top", Math.max(0, ($(window).height() - dialog.height()) / 2));
+        }
+
+        modal.on("show.bs.modal", align);
+        $(window).on("resize", function(){
+            if (modal.is(':visible')) {
+                align();
+            }
+        });
+        modal.modal('show');
+    };
+
+    var updateModalProductInfo = function(productInfo) {
+        var modal = $('#modal-gapv-pls-chooser');
+        
+        modal.data('productId', productInfo['product_id']);
+        
+        if (typeof productInfo['minimum'] !== 'undefined') {
+            modal.data('minimum', productInfo['minimum']);
+        }
+        else {
+            modal.removeData('minimum');
+        }
+
+        var thumb = modal.find('.product-info .thumb');
+        if (productInfo['thumb']) {
+            thumb.find('img').attr('src', productInfo['thumb']);
+            thumb.show();
+        }
+        else {
+            thumb.find('img').attr('src', '');
+            thumb.hide();
+        }
+
+        modal.find('.product-info .name').html(productInfo['name']);
+
+        var price = modal.find('.product-info .price');
+        var priceCurrent = price.find('.price-current');
+        var priceOld = price.find('.price-old');
+        var priceTax = price.find('.price-tax');
+        if (productInfo['price']) {
+            if (!productInfo['special']) {
+                priceCurrent.html(productInfo['price']);
+                priceOld.empty().hide();
+                if (priceCurrent.hasClass('special')) {
+                    priceCurrent.removeClass('special');
+                }
+            }
+            else {
+                priceCurrent.html(productInfo['special']);
+                priceOld.html(productInfo['price']);
+                priceOld.show();
+                if (!priceCurrent.hasClass('special')) {
+                    priceCurrent.addClass('special');
+                }
+            }
+
+            if (productInfo['tax']) {
+                priceTax.find('.tax-value').html(productInfo['tax']);
+                priceTax.show();
+            }
+            else {
+                priceTax.find('.tax-value').empty();
+                priceTax.hide();
+            }
+            price.show();
+        }
+        else {
+            priceCurrent.empty();
+            priceOld.empty();
+            priceTax.find('.tax-value').empty();
+            price.hide();
+        }
+
+        var productMinimum = modal.find('.product-minimum');
+        if (typeof productInfo['text_minimum'] !== 'undefined' && typeof productInfo['minimum'] !== 'undefined' && productInfo['minimum'] > 1) {
+            productMinimum.find('span').html(productInfo['text_minimum']);
+            productMinimum.show();
+        }
+        else {
+            productMinimum.find('span').empty();
+            productMinimum.hide(100);
+        }
+    }
+
+    $('#modal-gapv-pls-chooser').remove();
+
+    var ajaxUrl = 'index.php?route=extension/module/ga_product_variant/pls_chooser&product_id=' + options.productId + '&type=' + options.type + '&init=1';
+    $.ajax({
+        url: ajaxUrl,
+        dataType: 'json',
+        beforeSend: function() {
+            $el.prop('disabled', true);
+            if ($icon.length) {
+            $icon.data('oldClass', $icon.attr('class'));
+            $icon.attr('class', 'fa fa-circle-o-notch fa-spin');
+            }
+        },
+        complete: function() {
+            $el.prop('disabled', false);
+
+            if ($icon.length) {
+            $icon.attr('class', $icon.data('oldClass'));
+            $icon.removeData('oldClass');
+            }
+        },
+        success: function(json) {
+            $('body').append(json['html']);
+            var modal = $('#modal-gapv-pls-chooser');
+            updateModalProductInfo(json['product']);
+            modal.on('click', 'a.ga-pvov:not(\'.selected\')', function() {
+                var href = $(this).attr('href') + '&type=' + options.type;
+                if (loadModalBodyAjax !== null) {
+                    loadModalBodyAjax.abort();
+                    loadModalBodyAjax = null;
+                }
+                loadModalBody(href);
+                return false;
+            });
+            modal.on('click', 'button.confirm', function() {
+                if (options.onConfirm) {
+                    if (typeof modal.data('minimum') !== 'undefined') {
+                        options.onConfirm(modal.data('productId'), modal.data('minimum'));
+                    }
+                    else {
+                        options.onConfirm(modal.data('productId'));
+                    }
+                }
+                modal.modal('hide');
+            });
+            showModal();
+        },
+        error: function(xhr, ajaxOptions, thrownError) {
+            if (xhr.statusText =='abort') {
+                return;
+            }
+            console.error(thrownError + xhr.statusText + xhr.responseText);
+        }  
+    });
+}
+
+function GAProductVariantPlsChooserAdd(el, type, productId, quantity = 1, quick_buy) {
+
+    var onConfirm = function(productId, minimum = 1) {
+        switch (type) {
+            case 'cart':
+                if (quantity < minimum) {
+                    quantity = minimum;
+                }
+                if (typeof quick_buy !== 'undefined') {
+                    cart.add(productId, quantity, quick_buy);
+                }
+                else {
+                    cart.add(productId, quantity);
+                }
+                break;
+            case 'wishlist':
+                wishlist.add(productId);
+                break;
+            case 'compare':
+                compare.add(productId);
+                break;
+            default:
+                // do nothing
+        }
+    };
+
+    GAProductVariantShowPlsChooser(el, {
+        type: type,
+        productId: productId,
+        onConfirm: onConfirm
+    });
+}
